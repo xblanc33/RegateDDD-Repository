@@ -1,0 +1,108 @@
+import * as fs from 'fs';
+import Bateau from "./Bateau";
+import Cap from "./Cap";
+import PointGPS from "./PointGPS";
+
+export default class Regate {
+    private _id : string;
+    private _bateaux : Map<string, Bateau>;
+    private _estOuverteAuxInscriptions : boolean;
+    private _aDemarre : boolean;
+    private _depart : PointGPS;
+    private _arrive : PointGPS;
+
+    constructor(id : string, depart : PointGPS, arrive : PointGPS) {
+        this._id = id;
+        this._depart = depart;
+        this._arrive = arrive
+        this._bateaux = new Map();
+        this._estOuverteAuxInscriptions = true;
+        this._aDemarre = false;
+    }
+
+    get id() : string {
+        return this._id;
+    }
+
+    get estOuverteAuxInscriptions() : boolean {
+        return this._estOuverteAuxInscriptions;
+    }
+
+    get aDemarre() : boolean {
+        return this._aDemarre;
+    }
+
+    cloreLesInscriptions() {
+        this._estOuverteAuxInscriptions = false;
+    }
+
+    demarrer() : "INSCRIPTION_ENCORE_OUVERTE" | "REGATE_A_DEMARRE" {
+        if (!this._estOuverteAuxInscriptions) {
+            this._aDemarre = true;
+            return "REGATE_A_DEMARRE";
+        } else {
+            return "INSCRIPTION_ENCORE_OUVERTE"
+        }
+    }
+
+    inscrireNouveauBateau() : string | "INSCRIPTIONS_CLOSES" {
+        if (this._estOuverteAuxInscriptions) {
+            const idDuBateau = this._id + this._bateaux.size;
+            const nouveauBateau = new Bateau(idDuBateau);
+            nouveauBateau.definirPosition(this._depart);
+            this._bateaux.set(idDuBateau, nouveauBateau);
+            return idDuBateau;
+        } else {
+            return "INSCRIPTIONS_CLOSES";
+        }
+    }
+
+    changerCapDuBateau(idDuBateau : string, nouveauCap : Cap) : "ID_INCONNU" | "CAP_CHANGE" {
+        const bateau = this._bateaux.get(idDuBateau);
+        if (bateau) {
+            bateau.changerDeCap(nouveauCap);
+            return "CAP_CHANGE";
+        } else {
+            return "ID_INCONNU";
+        }
+    }
+
+    equals(other : any) : boolean {
+        return other instanceof Regate && this._id === other.id;
+    }
+
+
+    saveToFile() { 
+        let savedObject : any = {};
+        savedObject.id = this._id;
+        savedObject.estOuverteAuxInscriptions = this._estOuverteAuxInscriptions;
+        savedObject.aDemarre = this._aDemarre;
+        savedObject.depart = this._depart;
+        savedObject.arrive = this._arrive;
+        savedObject.bateaux = [];
+        this._bateaux.forEach((value, key) => {
+            savedObject.bateaux.push({
+                idBateau: key,
+                bateau: {
+                    cap : value.cap,
+                    position : value.position
+                }
+            });
+        })
+        fs.writeFileSync("regate_"+this._id+".json", JSON.stringify(savedObject));
+    }
+
+    static load(id : string) : Regate {
+        const data = fs.readFileSync("regate_"+id+".json", "utf-8")
+        const parsedData = JSON.parse(data);
+        const _id = parsedData.id;
+        const _depart = new PointGPS(Number(parsedData.depart._latitude), Number(parsedData.depart._longitude));
+        const _arrive = new PointGPS(Number(parsedData.arrive._latitude), Number(parsedData.arrive._longitude));
+        const regate = new Regate(_id, _depart, _arrive);
+        // parsedData.bateaux.forEach((bateau) => {
+        
+        // })
+        return regate;
+    }
+
+}
